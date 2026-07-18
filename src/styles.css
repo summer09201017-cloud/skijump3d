@@ -59,7 +59,7 @@ body {
   background: rgba(10, 16, 30, 0.7); font-size: 14px; z-index: 20; text-align: center;
 }
 .commentary-bar {
-  position: fixed; left: 50%; top: 68px; transform: translateX(-50%);
+  position: fixed; left: 50%; top: 96px; transform: translateX(-50%);
   max-width: min(86vw, 640px); padding: 8px 18px; border-radius: 999px;
   background: rgba(10, 14, 26, 0.85); border: 1px solid #7de08c;
   color: #f5f8ff; font-size: 17px; font-weight: 700; letter-spacing: 0.04em;
@@ -174,7 +174,7 @@ select option { background: #101a2e; color: #eef2f8; }
 @media (max-width: 720px) {
   .mode-grid { grid-template-columns: 1fr; }
   .controls-panel { display: none; }
-  .commentary-bar { top: 58px; font-size: 14px; }
+  .commentary-bar { top: 64px; font-size: 14px; }
   .team-score { font-size: 24px; }
   .power-panel { bottom: 128px; }
   .power-track { width: 120px; }
@@ -205,3 +205,6 @@ select option { background: #101a2e; color: #eef2f8; }
 .power-track { width: min(46vw, 440px) !important; height: 20px !important; }
 .power-fill { box-shadow: 0 0 14px rgba(255,210,74,.85); }
 #powerLabel { font-size: 16px !important; }
+
+/* 防疫(07-18 批次):殼層面板 display:flex 會蓋過 UA 的 [hidden]{display:none} */
+[hidden] { display: none !important; }
