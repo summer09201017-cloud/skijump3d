@@ -2,6 +2,7 @@
 // 玩法:出發→自動助滑加速→台端「時機起跳」(綠區同款手感)→空中 W/S 調前傾吃浮力→雪坡落地量距離。
 // 照 3d-game-kit:判定=畫面(真實拋物線+雪坡相交)、量值可調(跳數 1/2/3)、V 五檔視角、字幕+人聲、溫柔規則(不摔倒,落地蹲姿)。
 import * as THREE from "three";
+import { animateIdleHead, animateCrowdCheer, EAR_SAFE_PHI } from "./idle-life.js"; // idle 生動共用資產(3d-figure-kit)
 
 export const DIFFICULTY_LABELS = { kids: "幼兒", child: "兒童", easy: "入門", normal: "標準", hard: "職業" };
 // window=起跳時機窗(秒)、wind=風強、eff=助滑效率
@@ -27,6 +28,84 @@ function hillY(zPast) {
   if (zPast <= 2) return -0.5 * zPast; // 台唇立刻下墜(弱跳也能飛起來)
   if (zPast <= 115) return -1.0 - 0.7 * (zPast - 2); // 主著陸坡(≈35°)
   return -1.0 - 0.7 * 113 - 0.15 * (zPast - 115); // 出跑道緩坡
+}
+
+// 看台前排個別觀眾(會舉手歡呼)——torso + headGroup(五官齊+耳前無髮兩件式冬帽)+ 雙臂(pivot 肩/joint 肘)。
+// 回傳的鍵名符合 idle-life.js animateCrowdCheer 契約({ headGroup, leftArm, rightArm, rig })。
+function makeSpectator(coat, skinColor, hairColor) {
+  const rig = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.7 });
+  const coatMat = new THREE.MeshStandardMaterial({ color: coat, roughness: 0.85 });
+  const capMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.85 });
+  const dark = new THREE.MeshBasicMaterial({ color: 0x25201a });
+  const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.62, 0.26), coatMat);
+  torso.position.y = 0.56;
+  rig.add(torso);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.1, 8), skinMat);
+  neck.position.y = 0.9;
+  rig.add(neck);
+  for (const lx of [-0.12, 0.12]) { // 短腿(靜態,站看台意象)
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.28, 4, 8), new THREE.MeshStandardMaterial({ color: 0x2a3448, roughness: 0.8 }));
+    leg.position.set(lx, 0.16, 0);
+    rig.add(leg);
+  }
+  // 頭臉群組(樞紐=頭中心 HC=1.06);H(y)=局部座標,群組前後零位移
+  const HC = 1.06;
+  const headGroup = new THREE.Group();
+  headGroup.position.y = HC;
+  rig.add(headGroup);
+  const H = (y) => y - HC;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), skinMat);
+  headGroup.add(head);
+  const earL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), skinMat);
+  earL.scale.set(0.45, 1, 0.8);
+  earL.position.set(-0.2, H(1.05), 0);
+  const earR = earL.clone(); earR.position.x = 0.2;
+  headGroup.add(earL, earR);
+  // 冬帽兩件式(耳前無髮):①頭頂瓜皮帽(theta 0→0.32π,高於眉/眼/耳)②後腦半球(EAR_SAFE_PHI,前緣留耳後)
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.215, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.32), capMat);
+  cap.position.y = H(1.08);
+  headGroup.add(cap);
+  const capBack = new THREE.Mesh(
+    new THREE.SphereGeometry(0.208, 16, 12, EAR_SAFE_PHI.start, EAR_SAFE_PHI.end - EAR_SAFE_PHI.start, Math.PI * 0.12, Math.PI * 0.56),
+    capMat,
+  );
+  capBack.position.y = H(1.06);
+  headGroup.add(capBack);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 10), white);
+  eyeL.position.set(-0.072, H(1.09), 0.17);
+  const eyeR = eyeL.clone(); eyeR.position.x = 0.072;
+  const pupL = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 8), dark);
+  pupL.position.set(-0.072, H(1.09), 0.2);
+  const pupR = pupL.clone(); pupR.position.x = 0.072;
+  const browL = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.017, 0.02), dark);
+  browL.position.set(-0.072, H(1.15), 0.175); browL.rotation.z = 0.16;
+  const browR = browL.clone(); browR.position.x = 0.072; browR.rotation.z = -0.16;
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 8, 14, Math.PI), dark);
+  smile.position.set(0, H(0.98), 0.18); smile.rotation.z = Math.PI;
+  headGroup.add(eyeL, eyeR, pupL, pupR, browL, browR, smile);
+  const mkArm = (sx) => { // 肩 pivot → 肘 joint → 手;歡呼時 pivot.rotation.x 抬高
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, 0.8, 0);
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.22, 4, 8), coatMat);
+    upper.position.y = -0.13;
+    pivot.add(upper);
+    const joint = new THREE.Group();
+    joint.position.y = -0.25;
+    pivot.add(joint);
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.2, 4, 8), coatMat);
+    lower.position.y = -0.11;
+    joint.add(lower);
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.06), skinMat);
+    hand.position.y = -0.24;
+    joint.add(hand);
+    rig.add(pivot);
+    return { pivot, joint };
+  };
+  const leftArm = mkArm(-0.25);
+  const rightArm = mkArm(0.25);
+  return { rig, torso, headGroup, leftArm, rightArm, smile };
 }
 
 export class SkiJumpGame {
@@ -185,6 +264,29 @@ export class SkiJumpGame {
       this.crowd = heads;
       g.add(heads, torsos, eyesW, pupils, mouths);
     }
+    // 前排改個別人偶(torso+headGroup+雙臂)——會舉手歡呼+左右看的人浪;上面 InstancedMesh 留靜態背景
+    this.crowdFigures = [];
+    {
+      const coats = [0xe86a5a, 0x5aa1e8, 0xe8c95a, 0x6b4a2a, 0x4a6b3a, 0x8a5ac0, 0xd8d0c0];
+      const skins2 = [0xf2c89a, 0xe6b183, 0xd9a06f];
+      const hairs = [0x2b2119, 0x4a3423, 0x6b4a2a, 0x141414, 0x7a5a3a];
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 7; i += 1) {
+          const zp = 74 + i * 6.5;
+          const spec = makeSpectator(
+            coats[(i + (side > 0 ? 3 : 0)) % coats.length],
+            skins2[(i + (side > 0 ? 1 : 0)) % skins2.length],
+            hairs[(i * 2 + (side > 0 ? 1 : 0)) % hairs.length],
+          );
+          spec.rig.scale.setScalar(0.82);
+          spec.rig.position.set(side * 8.7, hillY(zp) + 0.5, -zp); // 略靠中線=在 InstancedMesh 前排
+          spec.rig.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2; // 臉朝坡道中線
+          g.add(spec.rig);
+          // 相位=座號×0.9 + 對側偏移(決定性,禁 Math.random)→ 此起彼落人浪,不整齊劃一
+          this.crowdFigures.push({ fig: spec, phase: i * 0.9 + (side > 0 ? 1.7 : 0), rigY: spec.rig.position.y });
+        }
+      }
+    }
     // 風向旗(台端旁)
     this.flag = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.8), new THREE.MeshBasicMaterial({ color: 0xd23b3b, side: THREE.DoubleSide }));
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4, 6), new THREE.MeshStandardMaterial({ color: 0x888888 }));
@@ -208,19 +310,44 @@ export class SkiJumpGame {
     waist.position.y = 0.96;
     const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.16, 10), skin);
     neck.position.y = 1.72;
+    // head=頭中心群組(樞紐=頭中心 y1.95),整顆連臉一起轉 → idle 轉頭時臉跟著轉。五官齊+耳前無髮。
     const head = new THREE.Group();
-    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 16), skin);
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), new THREE.MeshStandardMaterial({ color: 0xe8c93a, roughness: 0.35 }));
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.23, 18, 18), skin);
+    head.add(skull);
+    const earL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), skin); // 耳(獨立幾何,不被帽遮)
+    earL.scale.set(0.45, 1, 0.8);
+    earL.position.set(-0.225, -0.01, 0);
+    const earR = earL.clone(); earR.position.x = 0.225;
+    head.add(earL, earR);
+    // 安全帽=兩件式耳前無髮:①頭頂帽殼(theta 0→0.35π,帽緣高於眉/眼、不往前壓)
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xe8c93a, roughness: 0.35 });
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.255, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.35), helmetMat);
     helmet.position.y = 0.02;
-    const goggle = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.09, 0.06), dark);
-    goggle.position.set(0, 0.04, 0.2);
-    const eL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), white);
-    eL.position.set(-0.08, 0.05, 0.205);
-    const eR = eL.clone(); eR.position.x = 0.08;
-    const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 12, Math.PI), dark);
-    mouth.position.set(0, -0.09, 0.19);
+    head.add(helmet);
+    // ②後腦半球(EAR_SAFE_PHI 1.06π~1.94π,前緣留在耳後 z<0)→ 兩鬢與耳前露臉頰
+    const helmetBack = new THREE.Mesh(
+      new THREE.SphereGeometry(0.245, 16, 12, EAR_SAFE_PHI.start, EAR_SAFE_PHI.end - EAR_SAFE_PHI.start, Math.PI * 0.12, Math.PI * 0.56),
+      helmetMat,
+    );
+    head.add(helmetBack);
+    // 護目鏡:推到帽緣/眉上(不遮眼),保留滑雪識別
+    const goggle = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.075, 0.05), dark);
+    goggle.position.set(0, 0.135, 0.19);
+    head.add(goggle);
+    // 眼白+瞳孔+眉+咧嘴笑弧(mouth=idle 放大用的 smile)
+    const eL = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 10), white);
+    eL.position.set(-0.085, 0.03, 0.205);
+    const eR = eL.clone(); eR.position.x = 0.085;
+    const pL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), dark);
+    pL.position.set(-0.085, 0.03, 0.24);
+    const pR = pL.clone(); pR.position.x = 0.085;
+    const browL = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.02, 0.02), dark);
+    browL.position.set(-0.085, 0.085, 0.205); browL.rotation.z = 0.16;
+    const browR = browL.clone(); browR.position.x = 0.085; browR.rotation.z = -0.16;
+    const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 14, Math.PI), dark);
+    mouth.position.set(0, -0.085, 0.2);
     mouth.rotation.z = Math.PI;
-    head.add(skull, helmet, goggle, eL, eR, mouth);
+    head.add(eL, eR, pL, pR, browL, browR, mouth);
     head.position.y = 1.95;
     const mkLeg = (sx) => {
       const pivot = new THREE.Group();
@@ -266,7 +393,7 @@ export class SkiJumpGame {
     this.skiL.position.set(-0.14, 0.03, 0.35);
     this.skiR.position.set(0.14, 0.03, 0.35);
     g.add(chest, waist, neck, head, this.legL.pivot, this.legR.pivot, this.armL.pivot, this.armR.pivot, this.skiL, this.skiR);
-    g.userData = { head, mouth };
+    g.userData = { head, headGroup: head, smile: mouth, mouth }; // headGroup/smile 供 idle-life
     this.skier = g;
     this.scene.add(g);
   }
@@ -477,6 +604,19 @@ export class SkiJumpGame {
       this.armR.pivot.rotation.set(-0.9, 0, 0.6);
       this.skiL.rotation.y = 0; this.skiR.rotation.y = 0;
     }
+    // idle 生動:待機(起跳台/選單/完賽)時整顆頭偶爾轉頭看一下+咧嘴笑;助滑/飛行/落地=專注前方,平滑回正
+    const ud = this.skier.userData;
+    if (this.phase === "gate" || this.phase === "menu" || this.phase === "done") {
+      animateIdleHead(ud.headGroup, ud.smile, t, { phase: 1.3, period: 5.2 });
+    } else if (ud.headGroup) {
+      ud.headGroup.rotation.y += (0 - ud.headGroup.rotation.y) * 0.15;
+      if (ud.smile) {
+        ud.smile.scale.x += (1 - ud.smile.scale.x) * 0.15;
+        ud.smile.scale.y += (1 - ud.smile.scale.y) * 0.15;
+      }
+    }
+    // 觀眾人浪:前排個別人偶每幀舉手歡呼+左右看(相位錯開;邏輯在共用資產 idle-life.js)
+    if (this.crowdFigures) animateCrowdCheer(this.crowdFigures, t);
     // 風旗
     if (this.flag) {
       this.flag.rotation.y = (this.wind >= 0 ? 0 : Math.PI) + Math.sin(t * 5) * 0.18;
