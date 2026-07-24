@@ -225,3 +225,18 @@ window.addEventListener("resize", doResize);
 syncMenu();
 doResize();
 game.startLoop();
+
+
+// ── 真實停留 -dwell(07-25 廣佈:開頁到離開單發回報,手機安全;/stats 真實平均+最近一次)──
+(function () {
+  if (["localhost", "127.0.0.1"].includes(location.hostname)) return;
+  var _dwT0 = Date.now(), _dwSent = false;
+  function _dwLeave() {
+    if (_dwSent) return; _dwSent = true;
+    var s = Math.round((Date.now() - _dwT0) / 1000);
+    if (s >= 3 && s <= 1800 && navigator.sendBeacon)
+      navigator.sendBeacon("https://hfpc-play-stats.summer09201017.workers.dev/api/ping?g=skijump3d-dwell&t=" + s);
+  }
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") _dwLeave(); });
+  window.addEventListener("pagehide", _dwLeave);
+})();
