@@ -5,6 +5,7 @@ import { SkiJumpGame, DIFFICULTY_PRESETS } from "./game.js";
 import { AudioManager } from "./audio.js";
 import { loadSettings, saveSettings } from "./storage.js";
 import { speakLine, setVoiceEnabled } from "./voice.js";
+import { crowdCheer } from "./idle-life.js";   // 🙌 得分那一刻:畫面與聲音同一刻
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -88,7 +89,7 @@ game.onEvent = (event) => {
       pushCommentary(event.text, "info", "");
       break;
     case "match-end":
-      audio.horn(); audio.cheer(); audio.crowdCheer(1);
+      audio.horn(); audio.cheer(); audio.crowdCheer(1); crowdCheer(game).trigger(1);
       setTimeout(() => audio.stopCrowd(), 3200);
       ui.matchOverlay.classList.add("visible");
       ui.overlayTitle.textContent = event.title;

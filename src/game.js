@@ -2,7 +2,7 @@
 // 玩法:出發→自動助滑加速→台端「時機起跳」(綠區同款手感)→空中 W/S 調前傾吃浮力→雪坡落地量距離。
 // 照 3d-game-kit:判定=畫面(真實拋物線+雪坡相交)、量值可調(跳數 1/2/3)、V 五檔視角、字幕+人聲、溫柔規則(不摔倒,落地蹲姿)。
 import * as THREE from "three";
-import { animateIdleHead, animateCrowdCheer, EAR_SAFE_PHI } from "./idle-life.js"; // idle 生動共用資產(3d-figure-kit)
+import { animateIdleHead, animateCrowdCheer, EAR_SAFE_PHI, crowdCheer } from "./idle-life.js"; // idle 生動共用資產(3d-figure-kit)
 
 export const DIFFICULTY_LABELS = { kids: "幼兒", child: "兒童", easy: "入門", normal: "標準", hard: "職業" };
 // window=起跳時機窗(秒)、wind=風強、eff=助滑效率
@@ -616,7 +616,7 @@ export class SkiJumpGame {
       }
     }
     // 觀眾人浪:前排個別人偶每幀舉手歡呼+左右看(相位錯開;邏輯在共用資產 idle-life.js)
-    if (this.crowdFigures) animateCrowdCheer(this.crowdFigures, t);
+    if (this.crowdFigures) animateCrowdCheer(this.crowdFigures, t, { cheer: crowdCheer(this).stepAt(t) });
     // 風旗
     if (this.flag) {
       this.flag.rotation.y = (this.wind >= 0 ? 0 : Math.PI) + Math.sin(t * 5) * 0.18;
