@@ -1,0 +1,38 @@
+{
+  "name": "3D 滑雪跳台 Ski Jump 3D",
+  "short_name": "滑雪跳台",
+  "description": "HFPC 3D 運動・滑雪跳台。手機橫向遊玩。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#bfd6ea",
+  "theme_color": "#bfd6ea",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
